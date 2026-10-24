@@ -10,7 +10,7 @@ import streamlit as st
 import streamlit.components.v1 as components
 
 from gomoku.engine import analyze, EngineError
-from gomoku.game import new_game, play, review_move, export_game, import_game
+from gomoku.game import new_game, play, branch_play, review_move, export_game, import_game
 from gomoku.rules import board_at, coord, threat_lines, winning_moves
 from gomoku.storage import GameStore
 from gomoku.teacher import BazeTeacher, TeacherError
@@ -185,6 +185,7 @@ with board_col:
     board = board_at(shown_moves)
     current = game["analyses"][ply]
     turn = ply % 2 + 1
+    replay_terminal = ss.replay and ply == count and bool(game["result"]) and game["reason"] != "기권"
     if game["result"]:
         winner_text = "무승부" if game["result"] == 3 else ("승리" if game["result"] == game["player"] else "AI 승리")
         st.success(f"{winner_text} · {game['reason']} · 총 {count}수")
@@ -193,15 +194,18 @@ with board_col:
     position_token = game["id"]+":"+str(ply)+":"+str(ss.replay)
     clicked = board_widget(moves=shown_moves, numbers=ss.get("numbers", False), guide=ss.guide,
                            guides=current.get("guides", []), lines=threat_lines(board),
-                           disabled=ss.replay or bool(game["result"]) or ai_pending, position=position_token,
+                           disabled=replay_terminal or (not ss.replay and (bool(game["result"]) or ai_pending)), position=position_token,
                            acknowledged_event=ss.get("last_event"),
                            sound=ss.get("sound", True), game_id=game["id"],
                            key="board", default=None)
     if clicked and clicked.get("event") != ss.get("last_event"):
         ss.last_event = clicked.get("event")
-        if clicked.get("position") == position_token and not ss.replay and not game["result"] and turn == game["player"]:
+        if clicked.get("position") == position_token and not replay_terminal and (ss.replay or (not game["result"] and turn == game["player"])):
             try:
-                play(game, clicked.get("x"), clicked.get("y"))
+                if ss.replay:
+                    reset(branch_play(game, ply, clicked.get("x"), clicked.get("y")))
+                else:
+                    play(game, clicked.get("x"), clicked.get("y"))
                 ss.guide = False
                 st.rerun()
             except ValueError as error:
@@ -218,6 +222,7 @@ with board_col:
                       disabled=not count or (target == ply))
     if ss.replay and count:
         st.slider("복기 수순", 0, count, key="ply")
+        st.caption("빈자리에 두면 이후 수순을 지우고 새 대국으로 이어 둡니다. 현재 차례의 돌을 내가 두고 상대는 AI가 둬요.")
     rate = current.get("black_winrate")
     if game["result"] and ply == count:
         rate = {1: 1., 2: 0., 3: .5}[game["result"]]

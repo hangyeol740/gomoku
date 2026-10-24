@@ -3,6 +3,7 @@ from datetime import datetime, timezone
 from uuid import uuid4
 import json
 import math
+import copy
 
 from gomoku.rules import board_at, validate, winner_after, coord
 
@@ -24,6 +25,22 @@ def play(game, x, y):
     game["result"], _ = winner_after(board, x, y, color)
     if game["result"]:
         game["reason"] = "판 채움" if game["result"] == 3 else "오목 완성"
+
+
+def branch_play(game, ply, x, y):
+    """과거 국면에 착수한 새 대국. 검증 실패 시 원래 대국은 보존한다."""
+    if type(ply) is not int or not 0 <= ply <= len(game["moves"]):
+        raise ValueError("유효한 수순을 선택해 주세요.")
+    branch = new_game(1 + ply % 2)
+    for move in game["moves"][:ply]:
+        play(branch, *move)
+    branch["analyses"] = copy.deepcopy(game["analyses"][:ply+1])
+    branch["reviews"] = copy.deepcopy(game["reviews"][:ply])
+    branch["chat"] = copy.deepcopy([m for m in game["chat"] if m.get("ply", 0) <= ply])
+    if branch["analyses"] and branch["analyses"][-1].get("best_move") is None:
+        branch["analyses"] = branch["analyses"][:ply]
+    play(branch, x, y)
+    return branch
 
 
 def review_move(before, after, color, played):

@@ -3,11 +3,23 @@ import unittest
 from pathlib import Path
 
 from gomoku.rules import board_at, forbidden, winner_after, validate
-from gomoku.game import new_game, play, export_game, import_game, review_move
+from gomoku.game import new_game, play, branch_play, export_game, import_game, review_move
 from gomoku.storage import GameStore
 
 
 class RulesTests(unittest.TestCase):
+    def test_branch_from_previous_move_and_invalid_branch_preserves_original(self):
+        game = new_game()
+        for move in [(7, 7), (7, 6), (8, 8), (6, 6)]:
+            play(game, *move)
+        branch = branch_play(game, 1, 8, 7)
+        self.assertEqual(branch["moves"], [[7, 7], [8, 7]])
+        self.assertEqual(branch["player"], 2)
+        self.assertNotEqual(branch["id"], game["id"])
+        with self.assertRaises(ValueError):
+            branch_play(game, 1, 7, 7)
+        self.assertEqual(len(game["moves"]), 4)
+
     def board(self, black=(), white=()):
         b = board_at([])
         for x, y in black:
