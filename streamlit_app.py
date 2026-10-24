@@ -18,6 +18,8 @@ from gomoku.teacher import BazeTeacher, TeacherError
 st.set_page_config(page_title="오목 선생님", page_icon="⚫", layout="wide")
 st.markdown("""<style>
 .block-container{max-width:1420px;padding-top:2rem}h1{letter-spacing:-1.5px}div[data-testid="stMetric"]{background:white;padding:16px;border-radius:12px}div[data-testid="stChatMessage"]{border-radius:14px}.eyebrow{font-size:12px;font-weight:700;letter-spacing:3px;color:#18745c}.winbar{display:flex;height:30px;border-radius:8px;overflow:hidden;border:1px solid #cdd6cc}.winbar span{display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;white-space:nowrap}button{min-height:38px}
+[data-stale="true"], [data-stale="true"] > *{opacity:1 !important;filter:none !important;transition:none !important}
+[data-testid="stStatusWidget"], [data-testid="stAppRunningIndicator"]{display:none !important}
 </style>""", unsafe_allow_html=True)
 
 try:
@@ -138,8 +140,7 @@ st.caption("AI와 대국하고 · 궁금한 수를 질문하고 · 나의 대국
 # 대국 상태가 바뀐 때만 분석. 채팅·번호 토글·복기 이동은 캐시를 재사용한다.
 try:
     if len(game["analyses"]) <= len(game["moves"]):
-        with st.spinner("Rapfi 분석 중… (첫 실행은 엔진 준비에 수 분 걸릴 수 있어요)"):
-            fill_analysis(game, budget)
+        fill_analysis(game, budget)
 except EngineError as error:
     st.error(str(error))
     st.button("엔진 다시 연결", on_click=lambda: None)
@@ -191,7 +192,7 @@ with board_col:
         winner_text = "무승부" if game["result"] == 3 else ("승리" if game["result"] == game["player"] else "AI 승리")
         st.success(f"{winner_text} · {game['reason']} · 총 {count}수")
     else:
-        st.caption(f"{'복기 중' if ss.replay else 'AI 응수 대기' if ai_pending else '내 차례'} · {'흑' if turn == 1 else '백'} · {ply}수")
+        st.caption(f"{'복기 중' if ss.replay else '대국 중' if ai_pending else '내 차례'} · {'흑' if turn == 1 else '백'} · {ply}수")
     position_token = game["id"]+":"+str(ply)+":"+str(ss.replay)
     clicked = board_widget(moves=shown_moves, numbers=ss.get("numbers", False), guide=ss.guide,
                            guides=current.get("guides", []), lines=threat_lines(board),
