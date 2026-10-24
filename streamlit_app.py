@@ -69,6 +69,8 @@ def owner_id():
 if "game" not in st.session_state:
     reset()
 ss = st.session_state
+if ss.get("move_notice"):
+    st.toast(ss.pop("move_notice"), icon="⚠️")
 game = ss.game
 owner = owner_id()
 database_url = settings.get("DATABASE_URL") or os.getenv("DATABASE_URL", "")
@@ -197,6 +199,7 @@ with board_col:
     clicked = board_widget(moves=shown_moves, numbers=ss.get("numbers", False), guide=ss.guide,
                            guides=current.get("guides", []), lines=threat_lines(board),
                            disabled=ss.replay or bool(game["result"]) or ai_pending, position=position_token,
+                           acknowledged_event=ss.get("last_event"),
                            key="board", default=None)
     if clicked and clicked.get("event") != ss.get("last_event"):
         ss.last_event = clicked.get("event")
@@ -206,7 +209,8 @@ with board_col:
                 ss.guide = False
                 st.rerun()
             except ValueError as error:
-                st.toast(str(error), icon="⚠️")
+                ss.move_notice = str(error)
+                st.rerun()
     rate = current.get("black_winrate")
     if game["result"] and ply == count:
         rate = {1: 1., 2: 0., 3: .5}[game["result"]]
