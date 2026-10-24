@@ -96,6 +96,7 @@ with st.sidebar:
         reset()
         st.rerun()
     st.toggle("착수 번호", key="numbers")
+    st.toggle("착수음", value=True, key="sound")
     if game["moves"] and not ss.replay and not game["result"]:
         if st.button("기권하고 분석 보기", use_container_width=True):
             game["result"], game["reason"] = 3-game["player"], "기권"
@@ -177,13 +178,7 @@ with board_col:
             ss.guide = False
             st.rerun()
     count = len(game["moves"])
-    if ss.replay and count:
-        nav = st.columns(4)
-        for column, label, value in zip(nav, ["처음", "이전", "다음", "마지막"], [0, max(0, ss.ply-1), min(count, ss.ply+1), count]):
-            if column.button(label, use_container_width=True):
-                ss.ply = value
-        st.slider("복기 수순", 0, count, key="ply")
-    else:
+    if not ss.replay:
         ss.ply = count
     ply = ss.ply
     shown_moves = game["moves"][:ply]
@@ -200,6 +195,7 @@ with board_col:
                            guides=current.get("guides", []), lines=threat_lines(board),
                            disabled=ss.replay or bool(game["result"]) or ai_pending, position=position_token,
                            acknowledged_event=ss.get("last_event"),
+                           sound=ss.get("sound", True), game_id=game["id"],
                            key="board", default=None)
     if clicked and clicked.get("event") != ss.get("last_event"):
         ss.last_event = clicked.get("event")
@@ -211,6 +207,17 @@ with board_col:
             except ValueError as error:
                 ss.move_notice = str(error)
                 st.rerun()
+    def navigate(target):
+        ss.replay = True
+        ss.ply = target
+        ss.guide = False
+    nav = st.columns(4)
+    for column, label, target in zip(nav, ["처음", "이전", "다음", "마지막"],
+                                     [0, max(0, ply-1), min(count, ply+1), count]):
+        column.button(label, use_container_width=True, on_click=navigate, args=(target,),
+                      disabled=not count or (target == ply))
+    if ss.replay and count:
+        st.slider("복기 수순", 0, count, key="ply")
     rate = current.get("black_winrate")
     if game["result"] and ply == count:
         rate = {1: 1., 2: 0., 3: .5}[game["result"]]
