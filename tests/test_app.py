@@ -16,6 +16,20 @@ def test_analysis(moves, budget):
 
 class AppTests(unittest.TestCase):
     @patch("gomoku.engine.analyze", side_effect=test_analysis)
+    def test_invalid_ai_move_keeps_board_and_chat_visible(self, _):
+        app = AppTest.from_file(APP).run(timeout=30)
+        game = new_game(1)
+        for move in [(7, 7), (7, 6), (8, 8)]:
+            play(game, *move)
+        app.session_state["game"] = game
+        app.run(timeout=30)
+        self.assertFalse(app.exception)
+        self.assertTrue(any(h.value == "대국실" for h in app.subheader))
+        self.assertTrue(any(h.value == "채팅 선생님" for h in app.subheader))
+        self.assertTrue(any(b.label == "AI 응수 다시 시도" for b in app.button))
+        self.assertEqual(app.session_state["game"]["moves"], game["moves"])
+
+    @patch("gomoku.engine.analyze", side_effect=test_analysis)
     def test_guest_start_white_ai_move_and_replay(self, _):
         app = AppTest.from_file(APP).run(timeout=30)
         self.assertFalse(app.exception)

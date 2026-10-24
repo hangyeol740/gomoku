@@ -145,15 +145,19 @@ except EngineError as error:
     st.button("엔진 다시 연결", on_click=lambda: None)
     st.stop()
 
-if not ss.replay and not game["result"] and len(game["moves"]) % 2 + 1 != game["player"]:
+ai_pending = not ss.replay and not game["result"] and len(game["moves"]) % 2 + 1 != game["player"]
+if ai_pending:
     best = game["analyses"][-1]["best_move"]
     try:
         play(game, *best)
         ss.guide = False
         st.rerun()
     except ValueError as error:
-        st.error(str(error))
-        st.stop()
+        st.toast(f"AI 응수를 다시 확인해야 해요: {error}", icon="⚠️")
+        if st.button("AI 응수 다시 시도"):
+            analysis_for.clear()
+            game["analyses"] = game["analyses"][:len(game["moves"])]
+            st.rerun()
 
 if game["result"] and not ss.replay:
     ss.replay = True
@@ -187,11 +191,11 @@ with board_col:
         winner_text = "무승부" if game["result"] == 3 else ("승리" if game["result"] == game["player"] else "AI 승리")
         st.success(f"{winner_text} · {game['reason']} · 총 {count}수")
     else:
-        st.caption(f"{'복기 중' if ss.replay else '내 차례'} · {'흑' if turn == 1 else '백'} · {ply}수")
+        st.caption(f"{'복기 중' if ss.replay else 'AI 응수 대기' if ai_pending else '내 차례'} · {'흑' if turn == 1 else '백'} · {ply}수")
     position_token = game["id"]+":"+str(ply)+":"+str(ss.replay)
     clicked = board_widget(moves=shown_moves, numbers=ss.get("numbers", False), guide=ss.guide,
                            guides=current.get("guides", []), lines=threat_lines(board),
-                           disabled=ss.replay or bool(game["result"]), position=position_token,
+                           disabled=ss.replay or bool(game["result"]) or ai_pending, position=position_token,
                            key="board", default=None)
     if clicked and clicked.get("event") != ss.get("last_event"):
         ss.last_event = clicked.get("event")
@@ -201,7 +205,7 @@ with board_col:
                 ss.guide = False
                 st.rerun()
             except ValueError as error:
-                st.warning(str(error))
+                st.toast(str(error), icon="⚠️")
     rate = current.get("black_winrate")
     if game["result"] and ply == count:
         rate = {1: 1., 2: 0., 3: .5}[game["result"]]
